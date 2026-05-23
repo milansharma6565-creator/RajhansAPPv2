@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.rajhans.bookingapp"
-        minSdkVersion 23
+        minSdkVersion 26
         targetSdkVersion 34
         versionCode 1
         versionName "1.0"
@@ -27,4 +27,13 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.core:core:1.12.0'
+    
+    // Resolve Kotlin version conflict - enforce consistent Kotlin stdlib version
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+    }
 }
