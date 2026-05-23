@@ -2,12 +2,12 @@ apply plugin: 'com.android.application'
 
 android {
     namespace 'com.rajhans.bookingapp'
-    34
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.rajhans.bookingapp"
         minSdkVersion 23
-        34
+        targetSdkversion 34
         versionCode 1
         versionName "1.0"
     }
