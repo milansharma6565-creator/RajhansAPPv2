@@ -14,6 +14,10 @@ import android.widget.Toast;
 import android.view.View;
 import android.graphics.Color;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultContracts;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -32,11 +36,12 @@ public class MainActivity extends AppCompatActivity {
         "https://ais-pre-wa2il4aosrakow7t2npa4e-404294651574.asia-southeast1.run.app/?mode=booking&f=legacy-rajhans";
 
     private static final int PERMISSION_CODE = 100;
-    private static final int FILE_CHOOSER_CODE = 200;
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraImageUri;
+
+    private androidx.activity.result.ActivityResultLauncher<Intent> fileChooserLauncher;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -46,7 +51,27 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webView);
         requestPermissions();
         setupWebView();
+        setupFileChooserLauncher();
         webView.loadUrl(TARGET_URL);
+    }
+
+    private void setupFileChooserLauncher() {
+        fileChooserLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && filePathCallback != null) {
+                    Uri[] results = null;
+                    Intent data = result.getData();
+                    if (data != null && data.getData() != null) {
+                        results = new Uri[]{data.getData()};
+                    } else if (cameraImageUri != null) {
+                        results = new Uri[]{cameraImageUri};
+                    }
+                    filePathCallback.onReceiveValue(results);
+                    filePathCallback = null;
+                }
+            }
+        );
     }
 
     private void requestPermissions() {
@@ -110,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent chooser = Intent.createChooser(gallery, "Select");
                 chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camera});
-                startActivityForResult(chooser, FILE_CHOOSER_CODE);
+                fileChooserLauncher.launch(chooser);
                 return true;
             }
 
@@ -128,25 +153,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int req, int res, Intent data) {
-        super.onActivityResult(req, res, data);
-        if (req == FILE_CHOOSER_CODE && filePathCallback != null) {
-            Uri[] results = null;
-            if (res == Activity.RESULT_OK) {
-                if (data != null && data.getData() != null)
-                    results = new Uri[]{data.getData()};
-                else if (cameraImageUri != null)
-                    results = new Uri[]{cameraImageUri};
-            }
-            filePathCallback.onReceiveValue(results);
-            filePathCallback = null;
-        }
-    }
-
-    @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
     }
 
     @Override
