@@ -16,13 +16,19 @@ import android.graphics.Color;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultContracts;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,12 +42,15 @@ public class MainActivity extends AppCompatActivity {
         "https://ais-pre-wa2il4aosrakow7t2npa4e-404294651574.asia-southeast1.run.app/?mode=booking&f=legacy-rajhans";
 
     private static final int PERMISSION_CODE = 100;
+    private static final int RC_SIGN_IN = 9001;
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraImageUri;
+    private GoogleSignInClient mGoogleSignInClient;
 
     private androidx.activity.result.ActivityResultLauncher<Intent> fileChooserLauncher;
+    private androidx.activity.result.ActivityResultLauncher<Intent> googleSignInLauncher;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -52,7 +61,63 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions();
         setupWebView();
         setupFileChooserLauncher();
-        webView.loadUrl(TARGET_URL);
+        setupGoogleSignIn();
+        
+        // Check if user is already signed in
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+        if (account != null) {
+            // User is already signed in - load the app
+            loadWebView(account);
+        } else {
+            // Sign in with Google
+            startGoogleSignIn();
+        }
+    }
+
+    private void setupGoogleSignIn() {
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestProfile()
+            .build();
+
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
+
+        googleSignInLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent data = result.getData();
+                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+                    handleSignInResult(task);
+                }
+            }
+        );
+    }
+
+    private void startGoogleSignIn() {
+        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+        googleSignInLauncher.launch(signInIntent);
+    }
+
+    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+            if (account != null) {
+                loadWebView(account);
+            }
+        } catch (ApiException e) {
+            Toast.makeText(this, "Sign-in failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            finish();
+        }
+    }
+
+    private void loadWebView(GoogleSignInAccount account) {
+        String email = account.getEmail();
+        String idToken = account.getIdToken();
+        
+        // Pass Gmail info to WebView via URL parameters
+        String url = TARGET_URL + "&email=" + Uri.encode(email) + "&token=" + Uri.encode(idToken);
+        webView.loadUrl(url);
     }
 
     private void setupFileChooserLauncher() {
